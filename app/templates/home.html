@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Screen beneficiaries</h1>
+<p class="muted">Upload participant list (Excel or CSV). Each person is checked against donor-required sanctions &amp; debarment lists.</p>
+
+<div class="card">
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <div class="form-grid">
+      <div><label for="name">Batch name</label><input type="text" id="name" name="name" placeholder="e.g. Cohort 3 – Nov 2026"></div>
+      <div><label for="donor_name">Donor (report recipient)</label><input type="text" id="donor_name" name="donor_name" placeholder="e.g. Donor / grant name"></div>
+      <div><label for="file">List file (.xlsx / .csv)</label><input type="file" id="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required></div>
+    </div>
+    <p class="small muted" style="margin:12px 0">Recognised columns: <b>Name</b> (required) or First/Last name · ID · Other names / Local name (separate with <code>;</code>) · Date of birth · Country · Type (Person/Organization).
+      Example file: <code>sample_data/beneficiaries_sample.csv</code>.</p>
+    <button class="btn" type="submit">Upload &amp; start screening</button>
+  </form>
+</div>
+
+<h2>Lists screened</h2>
+<div class="card small">
+  {% for d in settings.datasets %}<div>• {{ dataset_label(d) }} <span class="muted">({{ d }})</span></div>{% endfor %}
+  <p class="muted" style="margin-bottom:0">Change with <code>SCREENING_DATASETS</code> in <code>.env</code> to match your donor's requirements.</p>
+</div>
+
+<h2>Batches</h2>
+{% if not batches %}
+  <p class="muted">No batches yet.</p>
+{% else %}
+<div class="table-wrap"><table>
+  <tr><th>Batch</th><th>Donor</th><th>People</th><th>Last screened</th><th>Result</th><th></th></tr>
+  {% for b in batches %}
+  <tr>
+    <td><a href="/runs/{{ b.latest_run_id }}">{{ b.name }}</a><div class="small muted">{{ b.source_file }}</div></td>
+    <td>{{ b.donor_name or '—' }}</td>
+    <td>{{ b.person_count }}</td>
+    <td class="small">{{ b.run.started_at if b.run else '—' }}</td>
+    <td>
+      {% if b.run and b.run.status == 'running' %}<span class="badge b-pending">Screening…</span>
+      {% elif b.run and b.run.status == 'failed' %}<span class="badge b-strong">Failed</span>
+      {% elif b.stats %}
+        {% if b.stats.pending %}<span class="badge b-pending">{{ b.stats.pending }} to review</span>{% endif %}
+        {% if b.stats.escalated %}<span class="badge b-escalated">{{ b.stats.escalated }} escalated</span>{% endif %}
+        {% if not b.stats.pending and not b.stats.escalated %}<span class="badge b-clear">Complete</span>{% endif %}
+      {% endif %}
+    </td>
+    <td><form action="/batches/{{ b.id }}/delete" method="post" onsubmit="return confirm('Delete this batch and all its screening results? This cannot be undone.')">
+      <button class="btn danger" style="padding:4px 10px;font-size:13px">Delete</button></form></td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

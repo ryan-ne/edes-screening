@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ batch.name }} – Screening{% endblock %}
+{% block head %}{% if run.status == 'running' %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
+{% block content %}
+<p class="small"><a href="/">← All batches</a></p>
+<h1>{{ batch.name }}</h1>
+<p class="muted small">Donor: {{ batch.donor_name or '—' }} · File: {{ batch.source_file }} · Run #{{ run.id }} started {{ run.started_at }} · List data: {{ run.data_version or 'n/a' }}</p>
+
+{% if imported %}<div class="notice info">Imported {{ imported }} people{% if skipped and skipped != '0' %} · {{ skipped }} row(s) skipped (empty/duplicate/bad date){% endif %}.</div>{% endif %}
+
+{% if run.status == 'running' %}
+  <div class="card">
+    <b>Screening in progress…</b> {{ run.processed }} / {{ run.total }}
+    <div class="progress" style="margin-top:8px"><div style="width: {{ (100 * run.processed / run.total) if run.total else 0 }}%"></div></div>
+  </div>
+{% elif run.status == 'failed' %}
+  <div class="notice err"><b>Screening failed:</b> {{ run.error }}</div>
+{% endif %}
+
+<div class="grid">
+  <div class="stat"><b>{{ stats.screened }}</b><span>Screened</span></div>
+  <div class="stat"><b style="color:var(--clear)">{{ stats['clear'] }}</b><span>No match</span></div>
+  <div class="stat"><b style="color:var(--possible)">{{ stats.possible + stats.strong }}</b><span>Potential matches</span></div>
+  <div class="stat"><b style="color:var(--possible)">{{ stats.pending }}</b><span>Pending review</span></div>
+  <div class="stat"><b style="color:var(--cleared)">{{ stats.cleared }}</b><span>Cleared (false +)</span></div>
+  <div class="stat"><b style="color:var(--strong)">{{ stats.escalated }}</b><span>Escalated</span></div>
+</div>
+
+{% if run.status == 'done' %}
+<div class="card" style="margin-top:16px">
+  <div class="row">
+    {% if stats.pending %}
+      {% for r in results if r.status != 'clear' and not r.review_decision %}{% if loop.first %}
+      <a class="btn" href="/results/{{ r.id }}">Start review ({{ stats.pending }} pending) →</a>{% endif %}{% endfor %}
+    {% endif %}
+    <a class="btn secondary" href="/runs/{{ run.id }}/report.pdf">⬇ PDF for donor (IDs only)</a>
+    <a class="btn secondary" href="/runs/{{ run.id }}/report.pdf?names=true">⬇ PDF with names</a>
+    <a class="btn secondary" href="/runs/{{ run.id }}/report.xlsx">⬇ Excel (full, internal)</a>
+    <a class="btn secondary" href="/runs/{{ run.id }}/report.xlsx?names=false">⬇ Excel (IDs only)</a>
+    <form action="/batches/{{ batch.id }}/rescreen" method="post" style="margin-left:auto"><button class="btn secondary">↻ Re-screen</button></form>
+  </div>
+  {% if stats.pending %}<p class="small muted" style="margin:10px 0 0">Report stays marked as draft until all potential matches are reviewed.</p>{% endif %}
+  {% if run.summary %}<p style="margin:12px 0 0"><b>AI summary:</b> {{ run.summary }}</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="row tabs" style="margin:22px 0 10px">
+  <a href="?show=flagged" class="{{ 'on' if show == 'flagged' }}">Potential matches</a>
+  <a href="?show=all" class="{{ 'on' if show == 'all' }}">Everyone</a>
+</div>
+
+{% if not results %}
+  <p class="muted">{% if show == 'flagged' and run.status == 'done' %}No potential matches — everyone is clear. ✅{% else %}Nothing yet.{% endif %}</p>
+{% else %}
+<div class="table-wrap"><table>
+  <tr><th>ID</th><th>Name</th><th>DOB</th><th>Country</th><th>Level</th><th>Best candidate</th><th>Score</th><th>Outcome</th></tr>
+  {% for r in results %}
+  {% set oc = final_outcome(r) %}
+  <tr>
+    <td class="small">{{ r.ref_id }}</td>
+    <td>{% if r.status != 'clear' %}<a href="/results/{{ r.id }}">{{ r.name }}</a>{% else %}{{ r.name }}{% endif %}
+        {% if r.alt_names %}<div class="small muted">{{ r.alt_names|join('; ') }}</div>{% endif %}</td>
+    <td class="small">{{ r.birth_date or '' }}</td>
+    <td class="small">{{ r.country or '' }}</td>
+    <td><span class="badge b-{{ r.status }}">{{ r.status|title }}</span></td>
+    <td class="small">{{ r.candidates[0].caption if r.candidates else '' }}</td>
+    <td class="small">{{ '%.2f'|format(r.top_score) }}</td>
+    <td>{% if oc == 'No match' %}<span class="badge b-clear">No match</span>
+        {% elif oc.startswith('Cleared') %}<span class="badge b-cleared">Cleared</span>
+        {% elif oc.startswith('Escalated') %}<span class="badge b-escalated">Escalated</span>
+        {% else %}<a class="badge b-pending" href="/results/{{ r.id }}">Review →</a>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+
+{% if runs|length > 1 %}
+<h2>Screening history</h2>
+<div class="table-wrap"><table>
+  <tr><th>Run</th><th>Date</th><th>Source</th><th>Status</th></tr>
+  {% for x in runs %}<tr><td><a href="/runs/{{ x.id }}">#{{ x.id }}</a>{% if x.id == run.id %} (viewing){% endif %}</td>
+    <td>{{ x.started_at }}</td><td>{{ x.screener }}</td><td>{{ x.status }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

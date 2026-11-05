@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Beneficiary Screening{% endblock %}</title>
+{% block head %}{% endblock %}
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2430; --muted: #5f6b7a; --border: #dde2e8;
+    --brand: #1f3a5f; --brand-2: #2d5a8c;
+    --clear: #1b7f3b; --clear-bg: #e8f5e9;
+    --possible: #9a6700; --possible-bg: #fff8e1;
+    --strong: #b42318; --strong-bg: #ffebee;
+    --cleared: #1e5fa8; --cleared-bg: #e3f2fd;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Myanmar", sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { background: var(--brand); color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  header a { color: #fff; text-decoration: none; font-weight: 600; font-size: 17px; }
+  header .meta { margin-left: auto; font-size: 13px; opacity: .85; }
+  main { max-width: 1150px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 17px; margin: 28px 0 10px; }
+  .muted { color: var(--muted); } .small { font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 16px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 13px; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; background: var(--card); }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); background: #fafbfc; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .b-clear { color: var(--clear); background: var(--clear-bg); }
+  .b-possible { color: var(--possible); background: var(--possible-bg); }
+  .b-strong { color: var(--strong); background: var(--strong-bg); }
+  .b-cleared { color: var(--cleared); background: var(--cleared-bg); }
+  .b-escalated { color: #fff; background: var(--strong); }
+  .b-pending { color: var(--possible); background: var(--possible-bg); }
+  .btn { display: inline-block; border: 1px solid var(--brand); background: var(--brand); color: #fff; padding: 8px 14px;
+         border-radius: 8px; font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; }
+  .btn:hover { background: var(--brand-2); }
+  .btn.secondary { background: #fff; color: var(--brand); }
+  .btn.danger { background: #fff; color: var(--strong); border-color: var(--strong); }
+  .btn.green { background: var(--clear); border-color: var(--clear); }
+  .btn.red { background: var(--strong); border-color: var(--strong); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  input[type=text], input[type=file], textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; background: #fff; }
+  textarea { min-height: 70px; }
+  .form-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .notice { padding: 10px 14px; border-radius: 8px; background: var(--possible-bg); color: #6b4a00; margin-bottom: 14px; font-size: 14px; }
+  .notice.info { background: var(--cleared-bg); color: #164a85; }
+  .notice.err { background: var(--strong-bg); color: var(--strong); }
+  .progress { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--brand-2); }
+  a { color: var(--brand-2); }
+  .tabs a { padding: 6px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; }
+  .tabs a.on { background: var(--brand); color: #fff; }
+  dl.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
+  dl.kv dt { color: var(--muted); font-size: 13px; } dl.kv dd { margin: 0; }
+  @media (max-width: 640px) { main { padding: 16px; } header .meta { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">🛡️ Beneficiary Screening</a>
+  <div class="meta">{{ settings.org_name }} · source: <b>{{ settings.screener_name }}</b>
+    {% if settings.claude_enabled %}· AI summaries on{% endif %} · <a href="/docs" style="font-size:13px;font-weight:400">API docs</a></div>
+</header>
+<main>
+{% if settings.screener_name == 'mock' %}
+  <div class="notice"><b>Demo mode:</b> using fictional test watchlist. Results are NOT real screening.
+  Set <code>OPENSANCTIONS_API_KEY</code> in <code>.env</code> for real lists.</div>
+{% endif %}
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>
