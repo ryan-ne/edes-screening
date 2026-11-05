@@ -33,6 +33,23 @@ Edit `.env`:
 
 Open http://127.0.0.1:8000. The API docs are at http://127.0.0.1:8000/docs.
 
+## Matching rules
+
+Names are expected to come from ID documents, so exact matches matter most:
+
+| Result | When |
+|---|---|
+| **Strong** | Exact same name as a list entry or one of its aliases (any word order; case, accents and a leading title like U / Daw / Mr ignored), with the birth year the same or unknown. Also a very close fuzzy match (score ≥ `STRONG_THRESHOLD`) with the same birth year |
+| **Possible** | Exact name with a different birth year, or a similar name scoring ≥ `POSSIBLE_THRESHOLD` (default 0.7) |
+| hidden | Weaker similarities |
+
+## EU compliance mode
+
+Choose **EU restrictive measures** as the screening standard on upload. This is the default; you can change it with `DEFAULT_PROFILE=eu|multi`. In this mode:
+- Only the EU Consolidated Financial Sanctions List is screened.
+- **EU compliance report (PDF)** contains the screening details, contract reference, list version, results, method, a declaration with a signature/stamp block, Annex 1 (every participant and their result) and Annex 2 (side-by-side evidence and review decision for each match).
+- The report is watermarked DRAFT until every match is reviewed, and DEMO when using the fictional test list.
+
 ## Deploy to a server
 
 See [DEPLOY.md](DEPLOY.md). It covers Docker Compose, automatic HTTPS with Caddy, the team password login, and backups.

@@ -6,7 +6,7 @@ DATASET_LABELS = {
     "us_ofac_sdn": "US OFAC Specially Designated Nationals (SDN)",
     "us_ofac_cons": "US OFAC Consolidated Sanctions (non-SDN)",
     "un_sc_sanctions": "UN Security Council Consolidated List",
-    "eu_fsf": "EU Consolidated Financial Sanctions",
+    "eu_fsf": "EU Consolidated Financial Sanctions List",
     "gb_fcdo_sanctions": "UK FCDO Sanctions List",
     "worldbank_debarred": "World Bank Debarred Firms & Individuals",
     "us_sam_exclusions": "US SAM.gov Exclusions",

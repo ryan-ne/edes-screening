@@ -79,7 +79,7 @@ def build_excel(run_id: int, include_names: bool = True) -> bytes:
 
     ws2 = wb.create_sheet("Results")
     cols = ["Beneficiary ID"] + (["Name", "Other names", "Date of birth", "Country"] if include_names else []) + [
-        "Type", "Outcome", "Match level", "Top score", "Best candidate", "Candidate lists",
+        "Type", "Outcome", "Match level", "Why flagged", "Top score", "Best candidate", "Candidate lists",
         "Reviewer", "Reviewed at", "Review note"]
     _header(ws2, cols)
     for r in results:
@@ -88,7 +88,8 @@ def build_excel(run_id: int, include_names: bool = True) -> bytes:
         line = [r["ref_id"]]
         if include_names:
             line += [r["name"], "; ".join(r["alt_names"]), r["birth_date"] or "", r["country"] or ""]
-        line += [r["entity_type"], outcome, r["status"].title(), round(r["top_score"], 3),
+        line += [r["entity_type"], outcome, r["status"].title(), "; ".join(best.get("notes", [])),
+                 round(r["top_score"], 3),
                  best.get("caption", ""), "; ".join(best.get("datasets", [])),
                  r.get("reviewer") or "", r.get("reviewed_at") or "", r.get("review_note") or ""]
         ws2.append(line)

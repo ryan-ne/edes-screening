@@ -4,7 +4,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+# DejaVu fonts: PDF reports can print names with non-Latin-1 characters
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install -r requirements.txt
 
 COPY app ./app
 COPY sample_data ./sample_data

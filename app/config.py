@@ -29,6 +29,15 @@ DEFAULT_DATASETS = [
     "us_sam_exclusions",    # US SAM.gov exclusions
 ]
 
+# Screening profiles chosen per batch.
+#   eu    -> EU restrictive measures only, EU compliance report
+#   multi -> the configurable multi-list set above, general report
+EU_DATASETS = ["eu_fsf"]  # EU Consolidated Financial Sanctions List
+PROFILES = {
+    "eu": "EU restrictive measures (EU Consolidated List)",
+    "multi": "Multi-list (OFAC, UN, EU, UK, World Bank, SAM)",
+}
+
 
 @dataclass
 class Settings:
@@ -43,9 +52,10 @@ class Settings:
     anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
     claude_model: str = os.getenv("CLAUDE_MODEL", "claude-sonnet-5-5")
     # Score thresholds (0-1) for match classification
-    possible_threshold: float = float(os.getenv("POSSIBLE_THRESHOLD", "0.5"))
-    strong_threshold: float = float(os.getenv("STRONG_THRESHOLD", "0.8"))
+    possible_threshold: float = float(os.getenv("POSSIBLE_THRESHOLD", "0.7"))
+    strong_threshold: float = float(os.getenv("STRONG_THRESHOLD", "0.9"))
     batch_size: int = int(os.getenv("BATCH_SIZE", "25"))
+    default_profile: str = os.getenv("DEFAULT_PROFILE", "eu")
     # Login. Empty APP_PASSWORD = no login (local use only).
     app_password: str = os.getenv("APP_PASSWORD", "")
     secret_key: str = os.getenv("SECRET_KEY", "")
@@ -62,6 +72,9 @@ class Settings:
     @property
     def auth_enabled(self) -> bool:
         return bool(self.app_password)
+
+    def datasets_for(self, profile: str | None) -> list[str]:
+        return list(EU_DATASETS) if (profile or self.default_profile) == "eu" else list(self.datasets)
 
     @property
     def screener_name(self) -> str:

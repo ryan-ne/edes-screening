@@ -12,10 +12,11 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from . import auth, db, service
-from .config import BASE_DIR, settings
+from .config import BASE_DIR, PROFILES, settings
 from .importer import import_file
 from .reports import dataset_label, final_outcome
 from .reports.excel import build_excel
+from .reports.eu_pdf import build_eu_pdf
 from .reports.pdf import build_pdf
 
 logging.basicConfig(level=logging.INFO)
@@ -33,7 +34,8 @@ app = FastAPI(title="Beneficiary Screening", version="1.0", lifespan=lifespan,
                           "and produce donor compliance reports.")
 app.add_middleware(auth.AuthMiddleware)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-templates.env.globals.update(settings=settings, dataset_label=dataset_label, final_outcome=final_outcome)
+templates.env.globals.update(settings=settings, dataset_label=dataset_label, final_outcome=final_outcome,
+                             profiles=PROFILES)
 
 
 def _require(obj: Any, what: str) -> Any:
@@ -50,14 +52,18 @@ async def _read_upload(file: UploadFile) -> bytes:
 
 
 def _create_and_run(bg: BackgroundTasks, name: str, donor: str | None, filename: str,
-                    content: bytes) -> tuple[int, int, Any]:
+                    content: bytes, profile: str = "", contract_ref: str = "") -> tuple[int, int, Any]:
+    profile = profile or settings.default_profile
+    if profile not in PROFILES:
+        raise HTTPException(400, f"profile must be one of: {', '.join(PROFILES)}")
     try:
         imp = import_file(filename, content)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     if not imp.persons:
         raise HTTPException(400, "No valid rows found in file.")
-    batch_id = db.create_batch(name or filename, donor, filename, imp.persons)
+    batch_id = db.create_batch(name or filename, donor, filename, imp.persons,
+                               profile=profile, contract_ref=contract_ref.strip() or None)
     run_id = service.start_run(batch_id)
     bg.add_task(service.execute_run, run_id)
     return batch_id, run_id, imp
@@ -131,18 +137,20 @@ def template_csv():
 
 @app.post("/upload")
 async def ui_upload(bg: BackgroundTasks, file: UploadFile = File(...),
-                    name: str = Form(""), donor_name: str = Form("")):
+                    name: str = Form(""), donor_name: str = Form(""),
+                    profile: str = Form(""), contract_ref: str = Form("")):
     content = await _read_upload(file)
-    _, run_id, imp = _create_and_run(bg, name, donor_name or None, file.filename or "upload", content)
+    _, run_id, imp = _create_and_run(bg, name, donor_name or None, file.filename or "upload", content,
+                                     profile, contract_ref)
     return RedirectResponse(f"/runs/{run_id}?imported={len(imp.persons)}&skipped={len(imp.warnings)}",
                             status_code=303)
 
 
 @app.get("/runs/{run_id}", response_class=HTMLResponse)
-def ui_run(request: Request, run_id: int, show: str = "flagged"):
+def ui_run(request: Request, run_id: int, show: str = "review"):
     run = _require(db.get_run(run_id), "Run")
     batch = db.get_batch(run["batch_id"])
-    results = db.get_results(run_id, only_flagged=(show == "flagged"))
+    results = db.get_results(run_id)  # template splits pending / reviewed / everyone
     return templates.TemplateResponse(request, "run.html", {
         "run": run, "batch": batch, "results": results, "stats": db.run_stats(run_id),
         "runs": db.list_runs(run["batch_id"]), "show": show,
@@ -160,6 +168,7 @@ def ui_result(request: Request, result_id: int):
     idx = ids.index(result_id) if result_id in ids else -1
     return templates.TemplateResponse(request, "result.html", {
         "r": r, "next_pending": pending[0] if pending else None,
+        "run_datasets": (db.get_run(r["run_id"]) or {}).get("datasets", []),
         "prev_id": ids[idx - 1] if idx > 0 else None,
         "next_id": ids[idx + 1] if 0 <= idx < len(ids) - 1 else None,
         "reviewer": request.cookies.get("reviewer", ""),
@@ -210,6 +219,14 @@ def report_pdf(run_id: int, names: bool = False):
                     headers={"Content-Disposition": f'attachment; filename="screening_run{run_id}.pdf"'})
 
 
+@app.get("/runs/{run_id}/eu-report.pdf")
+def report_eu_pdf(run_id: int):
+    """EU restrictive measures compliance report (declaration, annexes)."""
+    _require(db.get_run(run_id), "Run")
+    return Response(build_eu_pdf(run_id), media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="EU_screening_report_run{run_id}.pdf"'})
+
+
 # =========================== REST API ===========================
 
 class PersonIn(BaseModel):
@@ -239,9 +256,12 @@ def api_batches():
 
 @app.post("/api/batches", status_code=201)
 async def api_create_batch(bg: BackgroundTasks, file: UploadFile = File(...),
-                           name: str = Form(""), donor_name: str = Form("")):
+                           name: str = Form(""), donor_name: str = Form(""),
+                           profile: str = Form(""), contract_ref: str = Form("")):
+    """profile: 'eu' (EU Consolidated List + EU compliance report) or 'multi'."""
     content = await _read_upload(file)
-    batch_id, run_id, imp = _create_and_run(bg, name, donor_name or None, file.filename or "upload", content)
+    batch_id, run_id, imp = _create_and_run(bg, name, donor_name or None, file.filename or "upload", content,
+                                            profile, contract_ref)
     return {"batch_id": batch_id, "run_id": run_id, "imported": len(imp.persons),
             "duplicates": imp.duplicates, "warnings": imp.warnings, "column_mapping": imp.mapping}
 

@@ -14,8 +14,10 @@ log = logging.getLogger(__name__)
 def start_run(batch_id: int, screener_name: str | None = None,
               datasets: list[str] | None = None) -> int:
     persons = db.get_persons(batch_id)
+    batch = db.get_batch(batch_id) or {}
     screener_name = screener_name or settings.screener_name
-    return db.create_run(batch_id, screener_name, datasets or settings.datasets, len(persons))
+    datasets = datasets or settings.datasets_for(batch.get("profile"))
+    return db.create_run(batch_id, screener_name, datasets, len(persons))
 
 
 def execute_run(run_id: int) -> None:
@@ -54,7 +56,7 @@ def screen_one(person: dict[str, Any], screener_name: str | None = None,
     """Ad-hoc single-person screen (not stored)."""
     screener = get_screener(screener_name)
     p = {"id": 0, "alt_names": [], "entity_type": "Person", **person}
-    found = screener.screen([p], datasets or settings.datasets)
+    found = screener.screen([p], datasets or settings.datasets_for(None))
     status, top, kept = scoring.evaluate(p, found.get(0, []))
     return {"status": status, "top_score": top, "candidates": kept,
             "screener": screener.name, "data_version": screener.data_version()}

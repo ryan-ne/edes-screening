@@ -7,8 +7,9 @@ from app.screening.opensanctions import OpenSanctionsScreener
 
 def test_classify_thresholds():
     assert classify(0.3) == "clear"
-    assert classify(0.6) == "possible"
-    assert classify(0.9) == "strong"
+    assert classify(0.6) == "clear"
+    assert classify(0.75) == "possible"
+    assert classify(0.95) == "strong"
 
 
 def test_dob_mismatch_lowers_score():

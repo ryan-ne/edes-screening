@@ -16,7 +16,7 @@ def test_guess_mapping_handles_varied_headers():
 
 def test_sample_csv_import(sample_csv):
     res = import_file("sample.csv", sample_csv)
-    assert len(res.persons) == 8           # 10 rows - 1 empty - 1 duplicate
+    assert len(res.persons) == 10          # 12 rows - 1 empty - 1 duplicate
     assert res.duplicates == 1
     first = res.persons[0]
     assert first["ref_id"] == "B-001"

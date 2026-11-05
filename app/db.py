@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS batches (
     name TEXT NOT NULL,
     donor_name TEXT,
     source_file TEXT,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    profile TEXT NOT NULL DEFAULT 'multi',  -- eu | multi
+    contract_ref TEXT                       -- donor contract / grant reference
 );
 
 CREATE TABLE IF NOT EXISTS persons (
@@ -71,6 +73,12 @@ def init_db(path: Path | None = None) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with connect(path) as conn:
         conn.executescript(SCHEMA)
+        # Migrations for databases created by older versions
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(batches)")}
+        if "profile" not in cols:
+            conn.execute("ALTER TABLE batches ADD COLUMN profile TEXT NOT NULL DEFAULT 'multi'")
+        if "contract_ref" not in cols:
+            conn.execute("ALTER TABLE batches ADD COLUMN contract_ref TEXT")
 
 
 @contextmanager
@@ -102,11 +110,13 @@ def rows(rs: list[sqlite3.Row]) -> list[dict[str, Any]]:
 # ---------- batches & persons ----------
 
 def create_batch(name: str, donor_name: str | None, source_file: str | None,
-                 persons: list[dict[str, Any]]) -> int:
+                 persons: list[dict[str, Any]], profile: str = "multi",
+                 contract_ref: str | None = None) -> int:
     with connect() as conn:
         cur = conn.execute(
-            "INSERT INTO batches (name, donor_name, source_file, created_at) VALUES (?,?,?,?)",
-            (name, donor_name, source_file, now()),
+            "INSERT INTO batches (name, donor_name, source_file, created_at, profile, contract_ref)"
+            " VALUES (?,?,?,?,?,?)",
+            (name, donor_name, source_file, now(), profile, contract_ref),
         )
         batch_id = cur.lastrowid
         conn.executemany(

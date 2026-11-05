@@ -58,7 +58,12 @@ class OpenSanctionsScreener(Screener):
             "topics": props.get("topics", []),
             "birth_dates": props.get("birthDate", []),
             "countries": sorted(set(props.get("nationality", []) + props.get("country", []))),
-            "aliases": (props.get("alias", []) + props.get("name", []))[:8],
+            # all known names: used for exact-name matching, UI shows the first few
+            "aliases": list(dict.fromkeys(props.get("name", []) + props.get("alias", [])
+                                          + props.get("previousName", []) + props.get("weakAlias", [])))[:40],
+            "addresses": props.get("address", [])[:3],
+            "programs": props.get("program", [])[:3],
+            "listing_date": (props.get("createdAt") or [None])[0],
             "positions": props.get("position", [])[:3],
             "url": f"https://www.opensanctions.org/entities/{eid}/" if eid else None,
         }

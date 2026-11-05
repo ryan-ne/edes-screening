@@ -12,14 +12,15 @@ from .base import Screener
 
 # Fictional entries only.
 FAKE_WATCHLIST: list[dict[str, Any]] = [
-    {"entity_id": "mock-001", "caption": "Viktor Demo Sanctionov", "datasets": ["us_ofac_sdn"],
-     "topics": ["sanction"], "birth_dates": ["1965-04-12"], "countries": ["xx"]},
-    {"entity_id": "mock-002", "caption": "Aung Test Example", "datasets": ["un_sc_sanctions"],
-     "topics": ["sanction"], "birth_dates": ["1978"], "countries": ["mm"]},
-    {"entity_id": "mock-003", "caption": "Maria Fictional Debarred", "datasets": ["worldbank_debarred"],
-     "topics": ["debarment"], "birth_dates": [], "countries": ["zz"]},
+    {"entity_id": "mock-001", "caption": "Viktor Demo Sanctionov", "datasets": ["us_ofac_sdn", "eu_fsf"],
+     "topics": ["sanction"], "birth_dates": ["1965-04-12"], "countries": ["xx"], "aliases": []},
+    {"entity_id": "mock-002", "caption": "Aung Test Example", "datasets": ["un_sc_sanctions", "eu_fsf"],
+     "topics": ["sanction"], "birth_dates": ["1978"], "countries": ["mm"],
+     "aliases": ["Aung T. Example", "Ko Aung Example"]},
+    {"entity_id": "mock-003", "caption": "Maria Fictional Debarred", "datasets": ["worldbank_debarred", "eu_fsf"],
+     "topics": ["sanction"], "birth_dates": [], "countries": ["zz"], "aliases": []},
     {"entity_id": "mock-004", "caption": "Sample Front Company Ltd", "datasets": ["eu_fsf"],
-     "topics": ["sanction"], "birth_dates": [], "countries": ["xx"]},
+     "topics": ["sanction"], "birth_dates": [], "countries": ["xx"], "aliases": []},
 ]
 
 
@@ -39,9 +40,9 @@ class MockScreener(Screener):
             for w in FAKE_WATCHLIST:
                 if datasets and not set(w["datasets"]) & set(datasets):
                     continue
-                score = max(_sim(n, w["caption"]) for n in names)
+                score = max(_sim(n, wn) for n in names for wn in [w["caption"], *w["aliases"]])
                 if score >= 0.4:
-                    cands.append({**w, "score": round(score, 3), "aliases": [], "positions": [],
+                    cands.append({**w, "score": round(score, 3), "positions": [],
                                   "schema": "Person", "url": None})
             out[int(p["id"])] = sorted(cands, key=lambda c: c["score"], reverse=True)
         return out
