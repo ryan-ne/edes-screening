@@ -34,6 +34,46 @@ GREEN = colors.HexColor("#1B7F3B")
 AMBER = colors.HexColor("#9A6700")
 
 LEVEL_TEXT = {"strong": "Strong match", "possible": "Possible match", "clear": "No match"}
+
+# Wording per screening standard
+TEXTS: dict[str, dict[str, str]] = {
+    "edes": {
+        "title": "Exclusion Screening Report",
+        "subtitle": "EU Early Detection and Exclusion System (EDES) — screening of programme participants",
+        "entry": "EDES entry",
+        "short": "EDES screening report",
+        "clear": "None of the screened participants was identified as a person or entity excluded from EU "
+                 "funding in the EDES published list. All potential name matches were reviewed and cleared "
+                 "(see Annex 2).",
+        "escalated": "{n} participant(s) could not be ruled out as possible matches with persons or entities "
+                     "listed in EDES and have been escalated (see Annex 2). All other participants were found "
+                     "not to match any listed person or entity.",
+        "declaration": "To the best of my knowledge, no participant supported under this programme is a person "
+                       "or entity excluded from EU funding as published in EDES.",
+        "note": "Note: the EDES public list contains only the exclusion decisions the European Commission has "
+                "decided to publish; other exclusions and financial penalties are recorded in the restricted "
+                "EDES database (EDES-DB). Name screening identifies potential matches only. A potential match is "
+                "not a finding that a person is excluded. Results reflect list data at the version and date stated.",
+    },
+    "eu": {
+        "title": "Sanctions Screening Report",
+        "subtitle": "EU restrictive measures — screening of programme participants",
+        "entry": "EU list entry",
+        "short": "EU sanctions screening report",
+        "clear": "None of the screened participants was identified as a person or entity subject to EU "
+                 "restrictive measures. All potential name matches were reviewed and cleared (see Annex 2).",
+        "escalated": "{n} participant(s) could not be ruled out as possible matches with persons or entities "
+                     "subject to EU restrictive measures and have been escalated (see Annex 2). All other "
+                     "participants were found not to match any listed person or entity.",
+        "declaration": "To the best of my knowledge, no funds or economic resources have been or will be made "
+                       "available, directly or indirectly, to any person or entity subject to EU restrictive "
+                       "measures under this programme.",
+        "note": "Note: name screening identifies potential matches only. A potential match is not a finding that "
+                "a person is subject to restrictive measures. Results reflect list data at the version and date "
+                "stated; EU lists change frequently and re-screening before each payment or distribution cycle "
+                "is recommended.",
+    },
+}
 CHECK_TEXT = {"match": "Same", "differs": "Different", "unknown": "Not comparable"}
 
 
@@ -96,14 +136,14 @@ def _screen_date(run: dict) -> str:
     return (run.get("finished_at") or run["started_at"])[:10]
 
 
-def _evidence_block(i: int, r: dict, st, screened: list[str]) -> list:
+def _evidence_block(i: int, r: dict, st, screened: list[str], tx: dict[str, str]) -> list:
     """Side-by-side comparison for one flagged participant."""
     c = r["candidates"][0] if r["candidates"] else {}
     listed_on = [d for d in c.get("datasets", []) if d in screened] or c.get("datasets", [])
     other = "; ".join(dict.fromkeys(_printable(n) for n in r.get("alt_names") or [])) or None
     aliases = list(dict.fromkeys(_printable(a) for a in (c.get("aliases") or []) if a != c.get("caption")))[:6]
     rows = [
-        [_p("Field", st["cellb"]), _p("Participant", st["cellb"]), _p("EU list entry", st["cellb"]),
+        [_p("Field", st["cellb"]), _p("Participant", st["cellb"]), _p(tx["entry"], st["cellb"]),
          _p("Check", st["cellb"])],
         [_p("Name", st["cellb"]), _p(r["name"], st["cell"]), _p(c.get("caption"), st["cell"]),
          _p("Exact match" if c.get("match_type") == "exact" else "Similar, not identical", st["cell"])],
@@ -147,18 +187,20 @@ def build_eu_pdf(run_id: int) -> bytes:
     results = db.get_results(run_id)
     stats = db.run_stats(run_id)
     st = _styles()
+    tx = TEXTS["edes" if batch.get("profile") == "edes" else "eu"]
     date = _screen_date(run)
     lists = "; ".join(dataset_label(d) for d in run["datasets"])
     is_draft = stats["pending"] > 0 or run["status"] != "done"
     is_demo = run["screener"] == "mock"
 
     story: list = [
-        Paragraph("Sanctions Screening Report", st["title"]),
-        Paragraph("EU restrictive measures — screening of programme participants", st["subtitle"]),
+        Paragraph(escape(tx["title"]), st["title"]),
+        Paragraph(escape(tx["subtitle"]), st["subtitle"]),
         Spacer(1, 8),
     ]
     if is_demo:
-        story += [_banner("DEMO DATA — fictional test watchlist, not real EU list. Do not submit.", RED, st), Spacer(1, 6)]
+        story += [_banner("DEMO DATA — fictional test watchlist, not the real list. Do not submit.", RED, st),
+                  Spacer(1, 6)]
     if is_draft:
         story += [_banner(f"DRAFT — {stats['pending']} potential match(es) awaiting review. "
                           "Complete all reviews before signing and submitting.", AMBER, st), Spacer(1, 6)]
@@ -172,7 +214,7 @@ def build_eu_pdf(run_id: int) -> bytes:
         ("Participant list", f"{batch.get('name', '')} ({batch.get('source_file') or '—'})"),
         ("Number of participants screened", stats["screened"]),
         ("Date of screening", date),
-        ("Sanctions list(s)", lists),
+        ("List(s) screened", lists),
         ("List data version", run.get("data_version")),
         ("Screening source", "OpenSanctions (consolidated copy of official list data)"
          if run["screener"] == "opensanctions" else run["screener"]),
@@ -196,12 +238,9 @@ def build_eu_pdf(run_id: int) -> bytes:
     if is_draft:
         conclusion = "Screening is not complete: potential matches remain to be reviewed (see Annex 2)."
     elif stats["escalated"]:
-        conclusion = (f"{stats['escalated']} participant(s) could not be excluded as possible matches with persons "
-                      "or entities subject to EU restrictive measures and have been escalated (see Annex 2). "
-                      "All other participants were found not to match any listed person or entity.")
+        conclusion = tx["escalated"].format(n=stats["escalated"])
     else:
-        conclusion = ("None of the screened participants was identified as a person or entity subject to EU "
-                      "restrictive measures. All potential name matches were reviewed and cleared (see Annex 2).")
+        conclusion = tx["clear"]
     story.append(Paragraph(f"<b>Conclusion:</b> {escape(conclusion)}", st["body"]))
 
     # 3. Method
@@ -226,9 +265,7 @@ def build_eu_pdf(run_id: int) -> bytes:
         f"I, the undersigned, on behalf of <b>{escape(settings.org_name)}</b>, declare that all "
         f"<b>{stats['screened']}</b> participants listed in Annex 1 were screened on <b>{date}</b> against the "
         f"{escape(lists)}, and that the results and review decisions reported in this document are complete "
-        "and accurate to the best of my knowledge. To the best of my knowledge, no funds or economic resources "
-        "have been or will be made available, directly or indirectly, to any person or entity subject to EU "
-        "restrictive measures under this programme.", st["body"]))
+        f"and accurate to the best of my knowledge. {escape(tx['declaration'])}", st["body"]))
     story.append(Spacer(1, 10))
     sig = [[_p(lbl, st["cellb"]), ""] for lbl in ("Name", "Position", "Signature", "Date", "Place")]
     sig_t = Table(sig, colWidths=[30 * mm, 90 * mm], rowHeights=[9 * mm] * 5)
@@ -258,25 +295,22 @@ def build_eu_pdf(run_id: int) -> bytes:
     else:
         story.append(Paragraph(
             "For each potential match, the participant's details are compared with the closest entry on the "
-            "sanctions list, followed by the reviewer's decision.", st["body"]))
+            "screening list, followed by the reviewer's decision.", st["body"]))
         story.append(Spacer(1, 4))
         for i, r in enumerate(flagged, 1):
-            story += _evidence_block(i, r, st, run["datasets"])
+            story += _evidence_block(i, r, st, run["datasets"], tx)
 
     story.append(Spacer(1, 8))
-    story.append(Paragraph(
-        "Note: name screening identifies potential matches only. A potential match is not a finding that a person "
-        "is subject to restrictive measures. Results reflect list data at the version and date stated; EU lists "
-        "change frequently and re-screening before each payment or distribution cycle is recommended.", st["small"]))
+    story.append(Paragraph(escape(tx["note"]), st["small"]))
 
     buf = io.BytesIO()
-    title = f"EU sanctions screening report — {batch.get('name', '')}"
+    title = f"{tx['short']} — {batch.get('name', '')}"
 
     def _decorate(canvas, doc):
         canvas.saveState()
         canvas.setFont(st["reg"], 7.5)
         canvas.setFillColor(colors.HexColor("#777777"))
-        canvas.drawString(20 * mm, 10 * mm, f"{settings.org_name} — EU sanctions screening report — "
+        canvas.drawString(20 * mm, 10 * mm, f"{settings.org_name} — {tx['short']} — "
                                             f"{batch.get('contract_ref') or batch.get('name', '')} — Confidential")
         canvas.drawRightString(190 * mm, 10 * mm, f"Page {doc.page}")
         if is_draft or is_demo:

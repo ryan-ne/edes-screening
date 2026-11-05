@@ -56,8 +56,8 @@
 <div class="card" style="margin-top:16px">
   <div class="row">
     {% if pending %}<a class="btn" href="/results/{{ pending[0].id }}">Review {{ stats.pending }} match{{ 'es' if stats.pending != 1 }} →</a>{% endif %}
-    {% if batch.profile == 'eu' %}
-      <a class="btn {{ 'secondary' if pending }}" href="/runs/{{ run.id }}/eu-report.pdf">⬇ EU compliance report (PDF)</a>
+    {% if batch.profile in ('edes', 'eu') %}
+      <a class="btn {{ 'secondary' if pending }}" href="/runs/{{ run.id }}/eu-report.pdf">⬇ {{ 'EDES' if batch.profile == 'edes' else 'EU' }} compliance report (PDF)</a>
     {% else %}
       <a class="btn secondary" href="/runs/{{ run.id }}/report.pdf">⬇ PDF for donor (IDs only)</a>
       <a class="btn secondary" href="/runs/{{ run.id }}/report.pdf?names=true">⬇ PDF with names</a>
@@ -83,7 +83,7 @@
 
 {% if show != 'all' %}
   {% if not pending and not reviewed %}
-    <div class="card" style="text-align:center"><b style="color:var(--clear)">✓ No matches</b><div class="muted small">Nobody on this list matches the sanctions list.</div></div>
+    <div class="card" style="text-align:center"><b style="color:var(--clear)">✓ No matches</b><div class="muted small">Nobody on this list matches the screening list.</div></div>
   {% endif %}
 
   {% if pending %}

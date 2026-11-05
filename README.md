@@ -43,11 +43,19 @@ Names are expected to come from ID documents, so exact matches matter most:
 | **Possible** | Exact name with a different birth year, or a similar name scoring ≥ `POSSIBLE_THRESHOLD` (default 0.7) |
 | hidden | Weaker similarities |
 
-## EU compliance mode
+## Screening standards
 
-Choose **EU restrictive measures** as the screening standard on upload. This is the default; you can change it with `DEFAULT_PROFILE=eu|multi`. In this mode:
-- Only the EU Consolidated Financial Sanctions List is screened.
-- **EU compliance report (PDF)** contains the screening details, contract reference, list version, results, method, a declaration with a signature/stamp block, Annex 1 (every participant and their result) and Annex 2 (side-by-side evidence and review decision for each match).
+Pick one on upload. The default comes from `DEFAULT_PROFILE`:
+
+| Standard | List | Report |
+|---|---|---|
+| **EU EDES exclusion list** (default, `edes`) | [EDES](https://commission.europa.eu/strategy-and-policy/eu-budget/how-it-works/annual-lifecycle/implementation/anti-fraud-measures/edes_en) published exclusions (OpenSanctions dataset `eu_edes`) | EDES compliance report |
+| EU restrictive measures (`eu`) | EU Consolidated Financial Sanctions List | EU sanctions compliance report |
+| Multi-list (`multi`) | OFAC, UN, EU, UK, World Bank, SAM | General PDF |
+
+The public EDES list contains only the exclusion decisions the Commission has published, which is a handful of entries, mostly companies. Other exclusions are held in the restricted EDES-DB. Most individuals will therefore show "No match". The report states this.
+
+The **compliance report (PDF)** for EDES or EU contains the screening details, contract reference, list version, results, method, a declaration with a signature/stamp block, Annex 1 (every participant and their result) and Annex 2 (side-by-side evidence and review decision for each match).
 - The report is watermarked DRAFT until every match is reviewed, and DEMO when using the fictional test list.
 
 ## Deploy to a server

@@ -12,14 +12,14 @@ from .base import Screener
 
 # Fictional entries only.
 FAKE_WATCHLIST: list[dict[str, Any]] = [
-    {"entity_id": "mock-001", "caption": "Viktor Demo Sanctionov", "datasets": ["us_ofac_sdn", "eu_fsf"],
+    {"entity_id": "mock-001", "caption": "Viktor Demo Sanctionov", "datasets": ["us_ofac_sdn", "eu_fsf", "eu_edes"],
      "topics": ["sanction"], "birth_dates": ["1965-04-12"], "countries": ["xx"], "aliases": []},
-    {"entity_id": "mock-002", "caption": "Aung Test Example", "datasets": ["un_sc_sanctions", "eu_fsf"],
+    {"entity_id": "mock-002", "caption": "Aung Test Example", "datasets": ["un_sc_sanctions", "eu_fsf", "eu_edes"],
      "topics": ["sanction"], "birth_dates": ["1978"], "countries": ["mm"],
      "aliases": ["Aung T. Example", "Ko Aung Example"]},
-    {"entity_id": "mock-003", "caption": "Maria Fictional Debarred", "datasets": ["worldbank_debarred", "eu_fsf"],
+    {"entity_id": "mock-003", "caption": "Maria Fictional Debarred", "datasets": ["worldbank_debarred", "eu_fsf", "eu_edes"],
      "topics": ["sanction"], "birth_dates": [], "countries": ["zz"], "aliases": []},
-    {"entity_id": "mock-004", "caption": "Sample Front Company Ltd", "datasets": ["eu_fsf"],
+    {"entity_id": "mock-004", "caption": "Sample Front Company Ltd", "datasets": ["eu_fsf", "eu_edes"],
      "topics": ["sanction"], "birth_dates": [], "countries": ["xx"], "aliases": []},
 ]
 

@@ -32,11 +32,15 @@ DEFAULT_DATASETS = [
 # Screening profiles chosen per batch.
 #   eu    -> EU restrictive measures only, EU compliance report
 #   multi -> the configurable multi-list set above, general report
-EU_DATASETS = ["eu_fsf"]  # EU Consolidated Financial Sanctions List
+EDES_DATASETS = ["eu_edes"]  # EU Early Detection and Exclusion System (published exclusions)
+EU_DATASETS = ["eu_fsf"]     # EU Consolidated Financial Sanctions List
 PROFILES = {
+    "edes": "EU EDES exclusion list",
     "eu": "EU restrictive measures (EU Consolidated List)",
     "multi": "Multi-list (OFAC, UN, EU, UK, World Bank, SAM)",
 }
+# Profiles that produce the EU-style compliance report (declaration + annexes)
+EU_REPORT_PROFILES = {"edes", "eu"}
 
 
 @dataclass
@@ -55,7 +59,7 @@ class Settings:
     possible_threshold: float = float(os.getenv("POSSIBLE_THRESHOLD", "0.7"))
     strong_threshold: float = float(os.getenv("STRONG_THRESHOLD", "0.9"))
     batch_size: int = int(os.getenv("BATCH_SIZE", "25"))
-    default_profile: str = os.getenv("DEFAULT_PROFILE", "eu")
+    default_profile: str = os.getenv("DEFAULT_PROFILE", "edes")
     # Login. Empty APP_PASSWORD = no login (local use only).
     app_password: str = os.getenv("APP_PASSWORD", "")
     secret_key: str = os.getenv("SECRET_KEY", "")
@@ -74,7 +78,12 @@ class Settings:
         return bool(self.app_password)
 
     def datasets_for(self, profile: str | None) -> list[str]:
-        return list(EU_DATASETS) if (profile or self.default_profile) == "eu" else list(self.datasets)
+        p = profile or self.default_profile
+        if p == "edes":
+            return list(EDES_DATASETS)
+        if p == "eu":
+            return list(EU_DATASETS)
+        return list(self.datasets)
 
     @property
     def screener_name(self) -> str:

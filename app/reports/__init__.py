@@ -7,6 +7,7 @@ DATASET_LABELS = {
     "us_ofac_cons": "US OFAC Consolidated Sanctions (non-SDN)",
     "un_sc_sanctions": "UN Security Council Consolidated List",
     "eu_fsf": "EU Consolidated Financial Sanctions List",
+    "eu_edes": "EU Early Detection and Exclusion System (EDES) – published exclusions",
     "gb_fcdo_sanctions": "UK FCDO Sanctions List",
     "worldbank_debarred": "World Bank Debarred Firms & Individuals",
     "us_sam_exclusions": "US SAM.gov Exclusions",

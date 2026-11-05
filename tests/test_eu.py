@@ -48,7 +48,7 @@ def test_run_page_split_and_review_page(client, sample_csv):
     assert "Exact name" in page and "Similar name" in page
     rid = client.get(f"/api/runs/{up['run_id']}/results", params={"flagged_only": True}).json()[0]["id"]
     detail = client.get(f"/results/{rid}").text
-    assert "Sanctions list entry" in detail and "Different person" in detail
+    assert "List entry" in detail and "Different person" in detail
 
 
 def test_bad_profile_rejected(client, sample_csv):

@@ -24,7 +24,9 @@
 
 <h2>Lists screened</h2>
 <div class="card small">
-  <div><b>EU restrictive measures:</b> {% for d in settings.datasets_for('eu') %}{{ dataset_label(d) }}{% endfor %} → EU compliance report with declaration</div>
+  <div><b>EU EDES exclusion list:</b> {% for d in settings.datasets_for('edes') %}{{ dataset_label(d) }}{% endfor %} → EDES compliance report with declaration</div>
+  <div class="muted" style="margin:2px 0 0 0">The public EDES list holds only the exclusion decisions the Commission has published (a handful of entries), so most people will show "No match".</div>
+  <div style="margin-top:6px"><b>EU restrictive measures:</b> {% for d in settings.datasets_for('eu') %}{{ dataset_label(d) }}{% endfor %} → EU compliance report with declaration</div>
   <div style="margin-top:6px"><b>Multi-list:</b> {% for d in settings.datasets_for('multi') %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}</div>
 </div>
 

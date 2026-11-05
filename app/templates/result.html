@@ -19,8 +19,8 @@
   {% if r.review_decision %}<span class="badge b-{{ r.review_decision }}">{{ r.review_decision|title }}</span>{% endif %}
 </div>
 <p class="muted">
-  {% if c.match_type == 'exact' %}This name is <b>exactly the same</b> as a name on the sanctions list.
-  {% else %}This name is <b>similar</b> (not identical) to a name on the sanctions list.{% endif %}
+  {% if c.match_type == 'exact' %}This name is <b>exactly the same</b> as a name on the screening list.
+  {% else %}This name is <b>similar</b> (not identical) to a name on the screening list.{% endif %}
   {% if c.dob_check == 'differs' %} The birth year is different, which suggests a different person.
   {% elif c.dob_check == 'match' %} The birth year is also the same.
   {% else %} Birth dates can't be compared — check the ID document.{% endif %}
@@ -30,7 +30,7 @@
 
 <div class="table-wrap">
 <table class="compare">
-  <tr><th style="width:16%"></th><th style="width:30%">Participant</th><th style="width:34%">Sanctions list entry</th><th>Check</th></tr>
+  <tr><th style="width:16%"></th><th style="width:30%">Participant</th><th style="width:34%">List entry</th><th>Check</th></tr>
   <tr><td class="lbl">Name</td><td><b>{{ r.name }}</b></td><td><b>{{ c.caption }}</b></td>
       <td>{% if c.match_type == 'exact' %}<span class="chk bad">● Exact</span>{% else %}<span class="chk warn">● Similar</span>{% endif %}</td></tr>
   <tr><td class="lbl">Other names</td><td>{{ r.alt_names|join('; ') or '—' }}</td>
