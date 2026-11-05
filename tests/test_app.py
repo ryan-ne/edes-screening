@@ -49,6 +49,19 @@ def test_ui_pages_render(client, sample_csv):
     assert detail.status_code == 200 and "Decision" in detail.text
 
 
+def test_sample_and_template_downloads(client):
+    s = client.get("/sample.csv")
+    assert s.status_code == 200 and "attachment" in s.headers["content-disposition"]
+    assert s.content.startswith("﻿Beneficiary ID,Full Name".encode("utf-8"))
+    t = client.get("/template.csv")
+    assert t.status_code == 200 and "attachment" in t.headers["content-disposition"]
+    # template must round-trip through the importer's column detection
+    from app.importer import guess_mapping
+    headers = t.content.decode("utf-8-sig").strip().split(",")
+    assert set(guess_mapping(headers)) >= {"ref_id", "name", "alt_names", "birth_date", "country", "entity_type"}
+    assert 'href="/sample.csv"' in client.get("/").text
+
+
 def test_single_screen_and_bad_upload(client):
     r = client.post("/api/screen", json={"name": "Viktor Demo Sanctionov", "birth_date": "1965"})
     assert r.status_code == 200 and r.json()["status"] == "strong"

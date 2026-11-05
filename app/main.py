@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from . import auth, db, service
-from .config import settings
+from .config import BASE_DIR, settings
 from .importer import import_file
 from .reports import dataset_label, final_outcome
 from .reports.excel import build_excel
@@ -108,6 +108,25 @@ def home(request: Request):
         b["run"] = db.get_run(b["latest_run_id"]) if b["latest_run_id"] else None
         b["stats"] = db.run_stats(b["latest_run_id"]) if b["latest_run_id"] else None
     return templates.TemplateResponse(request, "home.html", {"batches": batches})
+
+
+TEMPLATE_HEADER = "Beneficiary ID,Full Name,Local Name,Date of Birth,Country,Type\n"
+
+
+@app.get("/sample.csv")
+def sample_csv():
+    """Example file with fictional people (matches the demo watchlist)."""
+    # BOM so Excel on Windows shows local-script names correctly
+    text = (BASE_DIR / "sample_data" / "beneficiaries_sample.csv").read_text(encoding="utf-8-sig")
+    return Response("﻿" + text, media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="beneficiaries_sample.csv"'})
+
+
+@app.get("/template.csv")
+def template_csv():
+    """Empty template with the recognised column headers."""
+    return Response("﻿" + TEMPLATE_HEADER, media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="beneficiaries_template.csv"'})
 
 
 @app.post("/upload")
