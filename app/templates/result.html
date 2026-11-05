@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Review {{ r.ref_id }}{% endblock %}
+{% block title %}Review {{ r.ref_id }} – EDES Screening{% endblock %}
 
 {% macro check(v) %}
   {% if v == 'match' %}<span class="chk bad">● Same</span>
@@ -8,77 +8,93 @@
 {% endmacro %}
 
 {% block content %}
-<p class="small"><a href="/runs/{{ r.run_id }}">← Back to list</a>
-  {% if prev_id %} · <a href="/results/{{ prev_id }}">‹ Previous</a>{% endif %}
-  {% if next_id %} · <a href="/results/{{ next_id }}">Next ›</a>{% endif %}</p>
-
 {% set c = r.candidates[0] if r.candidates else {} %}
-<div class="row">
-  <h1>{{ r.name }}</h1>
-  <span class="badge b-{{ r.status }}">{{ r.status|title }} match</span>
-  {% if r.review_decision %}<span class="badge b-{{ r.review_decision }}">{{ r.review_decision|title }}</span>{% endif %}
-</div>
-<p class="muted">
-  {% if c.match_type == 'exact' %}This name is <b>exactly the same</b> as a name on the screening list.
-  {% else %}This name is <b>similar</b> (not identical) to a name on the screening list.{% endif %}
-  {% if c.dob_check == 'differs' %} The birth year is different, which suggests a different person.
-  {% elif c.dob_check == 'match' %} The birth year is also the same.
-  {% else %} Birth dates can't be compared — check the ID document.{% endif %}
-</p>
+<p class="small" style="margin-top:0"><a href="/runs/{{ r.run_id }}">← Back to batch</a></p>
+<div class="layout">
+<div>
+  <div class="row" style="gap:12px">
+    <h1 style="margin:0">{{ r.name }}</h1>
+    <span class="badge b-{{ r.status }}">{{ r.status }} match</span>
+    {% if r.review_decision %}<span class="badge b-{{ r.review_decision }}">{{ r.review_decision }}</span>{% endif %}
+  </div>
+  <p class="muted" style="margin:8px 0 18px">
+    {% if c.match_type == 'exact' %}This name is <b>exactly the same</b> as a name on the screening list.
+    {% else %}This name is <b>similar</b> (not identical) to a name on the screening list.{% endif %}
+    {% if c.dob_check == 'differs' %} The birth year is different, which suggests a different person.
+    {% elif c.dob_check == 'match' %} The birth year is also the same.
+    {% else %} Birth dates can't be compared — check the ID document.{% endif %}
+  </p>
 
-{% if r.ai_summary %}<div class="notice info"><b>AI assessment (advisory only):</b> {{ r.ai_summary }}</div>{% endif %}
+  {% if r.ai_summary %}<div class="notice info"><b>AI assessment (advisory only):</b> {{ r.ai_summary }}</div>{% endif %}
 
-<div class="table-wrap">
-<table class="compare">
-  <tr><th style="width:16%"></th><th style="width:30%">Participant</th><th style="width:34%">List entry</th><th>Check</th></tr>
-  <tr><td class="lbl">Name</td><td><b>{{ r.name }}</b></td><td><b>{{ c.caption }}</b></td>
-      <td>{% if c.match_type == 'exact' %}<span class="chk bad">● Exact</span>{% else %}<span class="chk warn">● Similar</span>{% endif %}</td></tr>
-  <tr><td class="lbl">Other names</td><td>{{ r.alt_names|join('; ') or '—' }}</td>
-      <td class="small">{{ ((c.aliases or [])|reject('equalto', c.caption)|list)[:6]|join('; ') or '—' }}</td><td></td></tr>
-  <tr><td class="lbl">Date of birth</td><td>{{ r.birth_date or '—' }}</td><td>{{ (c.birth_dates or [])|join(', ') or '—' }}</td><td>{{ check(c.dob_check) }}</td></tr>
-  <tr><td class="lbl">Country</td><td>{{ r.country or '—' }}</td><td>{{ (c.countries or [])|join(', ')|upper or '—' }}</td><td>{{ check(c.country_check) }}</td></tr>
-  <tr><td class="lbl">Listed on</td><td>—</td>
-      <td class="small">{% for d in c.datasets or [] if d in run_datasets %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}
-        {% if c.programs %}<br>{{ c.programs|join('; ') }}{% endif %}</td><td></td></tr>
-  {% if c.positions %}<tr><td class="lbl">Positions</td><td>—</td><td class="small">{{ c.positions|join('; ') }}</td><td></td></tr>{% endif %}
-  <tr><td class="lbl">Reference</td><td>{{ r.ref_id }}</td>
-      <td class="small">{% if c.url %}<a href="{{ c.url }}" target="_blank" rel="noopener noreferrer">Open list record ↗</a>{% else %}{{ c.entity_id }}{% endif %}</td><td></td></tr>
-</table>
-</div>
+  <div class="table-wrap">
+  <table class="compare">
+    <tr><th style="width:17%"></th><th style="width:30%">Participant</th><th style="width:34%">List entry</th><th>Check</th></tr>
+    <tr><td class="lbl">Name</td><td><b>{{ r.name }}</b></td><td><b>{{ c.caption }}</b></td>
+        <td>{% if c.match_type == 'exact' %}<span class="chk bad">● Exact</span>{% else %}<span class="chk warn">● Similar</span>{% endif %}</td></tr>
+    <tr><td class="lbl">Other names</td><td>{{ r.alt_names|join('; ') or '—' }}</td>
+        <td class="small">{{ ((c.aliases or [])|reject('equalto', c.caption)|list)[:6]|join('; ') or '—' }}</td><td></td></tr>
+    <tr><td class="lbl">Date of birth</td><td>{{ r.birth_date or '—' }}</td><td>{{ (c.birth_dates or [])|join(', ') or '—' }}</td><td>{{ check(c.dob_check) }}</td></tr>
+    <tr><td class="lbl">Country</td><td>{{ r.country or '—' }}</td><td>{{ (c.countries or [])|join(', ')|upper or '—' }}</td><td>{{ check(c.country_check) }}</td></tr>
+    <tr><td class="lbl">Listed on</td><td>—</td>
+        <td class="small">{% for d in c.datasets or [] if d in run_datasets %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}
+          {% if c.programs %}<br>{{ c.programs|join('; ') }}{% endif %}</td><td></td></tr>
+    {% if c.positions %}<tr><td class="lbl">Positions</td><td>—</td><td class="small">{{ c.positions|join('; ') }}</td><td></td></tr>{% endif %}
+    <tr><td class="lbl">Reference</td><td class="mono">{{ r.ref_id }}</td>
+        <td class="small">{% if c.url %}<a href="{{ c.url }}" target="_blank" rel="noopener noreferrer">Open list record ↗</a>{% else %}<code>{{ c.entity_id }}</code>{% endif %}</td><td></td></tr>
+  </table>
+  </div>
 
-{% if r.candidates|length > 1 %}
-<details class="card" style="margin-top:12px">
-  <summary><b>{{ r.candidates|length - 1 }} other possible list entr{{ 'y' if r.candidates|length == 2 else 'ies' }}</b></summary>
-  {% for o in r.candidates[1:] %}
-  <p class="small" style="margin:8px 0 0"><b>{{ o.caption }}</b> — {{ 'exact name' if o.match_type == 'exact' else 'similar name' }},
-    DOB {{ (o.birth_dates or [])|join(', ') or 'unknown' }} ·
-    {% for d in o.datasets or [] %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}
-    {% if o.url %}· <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer">record ↗</a>{% endif %}</p>
-  {% endfor %}
-</details>
-{% endif %}
+  {% if r.candidates|length > 1 %}
+  <details class="card" style="margin-top:12px">
+    <summary><b>{{ r.candidates|length - 1 }} other possible list entr{{ 'y' if r.candidates|length == 2 else 'ies' }}</b></summary>
+    {% for o in r.candidates[1:] %}
+    <p class="small" style="margin:8px 0 0"><b>{{ o.caption }}</b> — {{ 'exact name' if o.match_type == 'exact' else 'similar name' }},
+      DOB {{ (o.birth_dates or [])|join(', ') or 'unknown' }} ·
+      {% for d in o.datasets or [] if d in run_datasets %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}
+      {% if o.url %}· <a href="{{ o.url }}" target="_blank" rel="noopener noreferrer">record ↗</a>{% endif %}</p>
+    {% endfor %}
+  </details>
+  {% endif %}
 
-<h2>Your decision</h2>
-<div class="card">
-  {% if r.review_decision %}<p class="small muted" style="margin-top:0">Reviewed by {{ r.reviewer }} on {{ r.reviewed_at }}. Saving again replaces it.</p>{% endif %}
-  <form method="post" action="/results/{{ r.id }}/review">
-    <div class="form-grid">
-      <div><label for="reviewer">Reviewer name</label><input type="text" id="reviewer" name="reviewer" required value="{{ reviewer or r.reviewer or '' }}"></div>
-    </div>
-    <div style="margin-top:12px"><label for="note">Reason <span class="muted">(goes into the donor report)</span></label>
-      <div class="row" style="margin-bottom:6px">
-        {% for q in ['Different date of birth (checked ID document)', 'Different nationality / place of birth', 'Different person – verified with national ID card', 'Name common in region; no other identifiers match'] %}
-        <button type="button" class="chip" onclick="addReason(this.textContent)">{{ q }}</button>
-        {% endfor %}
+  <h2>Your decision</h2>
+  <div class="card">
+    {% if r.review_decision %}<p class="small muted" style="margin-top:0">Reviewed by {{ r.reviewer }} on {{ r.reviewed_at }}. Saving again replaces it.</p>{% endif %}
+    <form method="post" action="/results/{{ r.id }}/review">
+      <div class="form-grid">
+        <div><label for="reviewer">Reviewer name</label><input type="text" id="reviewer" name="reviewer" required value="{{ reviewer or r.reviewer or '' }}"></div>
       </div>
-      <textarea id="note" name="note" placeholder="Why is this (not) the same person?">{{ r.review_note or '' }}</textarea></div>
-    <input type="hidden" name="go" value="next">
-    <div class="row" style="margin-top:12px">
-      <button class="btn green" name="decision" value="cleared">✓ Not the same person — clear</button>
-      <button class="btn red" name="decision" value="escalated">⚠ Could be the same person — escalate</button>
-    </div>
-    <p class="small muted">Escalate = do not give support to this person until your compliance lead / the donor resolves it.</p>
-  </form>
+      <div style="margin-top:14px"><label for="note">Reason <span class="muted" style="font-weight:500">(goes into the donor report)</span></label>
+        <div class="row" style="margin-bottom:8px;gap:6px">
+          {% for q in ['Different date of birth (checked ID document)', 'Different nationality / place of birth', 'Different person – verified with national ID card', 'Name common in region; no other identifiers match'] %}
+          <button type="button" class="chip" onclick="addReason(this.textContent)">{{ q }}</button>
+          {% endfor %}
+        </div>
+        <textarea id="note" name="note" placeholder="Why is this (not) the same person?">{{ r.review_note or '' }}</textarea></div>
+      <input type="hidden" name="go" value="next">
+      <div class="row" style="margin-top:14px">
+        <button class="btn green" name="decision" value="cleared">✓ Not the same person — clear</button>
+        <button class="btn red" name="decision" value="escalated">⚠ Could be the same person — escalate</button>
+      </div>
+      <p class="small muted" style="margin-bottom:0">Escalate = do not give support to this person until your compliance lead / the donor resolves it.</p>
+    </form>
+  </div>
+</div>
+
+<aside>
+  <nav class="sidenav">
+    <a href="/runs/{{ r.run_id }}">All matches</a>
+    {% if prev_id %}<a href="/results/{{ prev_id }}">‹ Previous match</a>{% endif %}
+    {% if next_id %}<a href="/results/{{ next_id }}">Next match ›</a>{% endif %}
+  </nav>
+  <div class="callout">
+    <p><b>Assessment</b></p>
+    <p>{{ 'Strong match' if r.status == 'strong' else 'Possible match' }} ·
+       {{ 'exact name' if c.match_type == 'exact' else 'similar name' }} ·
+       birth year {{ {'match': 'same', 'differs': 'different'}.get(c.dob_check, 'not comparable') }}</p>
+    <p style="margin:0">Compare with the participant's ID document before deciding. Your reason is printed in the report's evidence annex.</p>
+  </div>
+</aside>
 </div>
 <script>
   function addReason(t) {

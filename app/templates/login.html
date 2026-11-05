@@ -1,13 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Sign in – Beneficiary Screening{% endblock %}
+{% block title %}Sign in – EDES Screening{% endblock %}
+{% block hero %}
+<section class="hero"><div class="inner">
+  <h1>Sign in</h1>
+  <p>Beneficiary screening for {{ settings.org_name }}.</p>
+</div></section>
+{% endblock %}
 {% block content %}
-<div class="card" style="max-width:380px;margin:40px auto">
-  <h1 style="margin-bottom:12px">Sign in</h1>
+<div class="card" style="max-width:400px">
   {% if error %}<div class="notice err">{{ error }}</div>{% endif %}
   <form method="post" action="/login">
     <label for="password">Team password</label>
-    <input type="password" id="password" name="password" required autofocus autocomplete="current-password"
-           style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font:inherit">
+    <input type="password" id="password" name="password" required autofocus autocomplete="current-password">
     <button class="btn" type="submit" style="margin-top:14px;width:100%">Sign in</button>
   </form>
 </div>

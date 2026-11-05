@@ -1,60 +1,80 @@
 {% extends "base.html" %}
+{% block hero %}
+<section class="hero"><div class="inner">
+  <h1>Screen programme participants</h1>
+  <p>Check your beneficiary list against the EU Early Detection and Exclusion System (EDES), review potential matches, and produce a signed compliance report for your donor.</p>
+</div></section>
+{% endblock %}
+
 {% block content %}
-<h1>Screen beneficiaries</h1>
-<p class="muted">Upload participant list (Excel or CSV). Each person is checked against donor-required sanctions &amp; debarment lists.</p>
+<div class="layout">
+<div>
+  <h2 style="margin-top:0">New screening</h2>
+  <div class="card">
+    <form action="/upload" method="post" enctype="multipart/form-data">
+      <div class="form-grid">
+        <div><label for="name">Batch name</label><input type="text" id="name" name="name" placeholder="e.g. Cohort 3 – Nov 2026"></div>
+        <div><label for="donor_name">Donor</label><input type="text" id="donor_name" name="donor_name" placeholder="e.g. European Union"></div>
+        <div><label for="contract_ref">Contract / grant reference</label><input type="text" id="contract_ref" name="contract_ref" placeholder="e.g. NDICI-XXXX/2026/123456"></div>
+        <div><label for="profile">Screening standard</label>
+          <select id="profile" name="profile">
+            {% for key, label in profiles.items() %}<option value="{{ key }}" {{ 'selected' if key == settings.default_profile }}>{{ label }}</option>{% endfor %}
+          </select></div>
+      </div>
+      <div style="margin-top:16px"><label for="file">Participant list (.xlsx / .csv)</label>
+        <input type="file" id="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required></div>
+      <p class="small muted" style="margin:10px 0 14px">Columns: <b>Name</b> (required) or First/Last name · ID · Other names / Local name (separate with <code>;</code>) · Date of birth · Country · Type (Person/Organization).</p>
+      <div class="row">
+        <button class="btn accent" type="submit">Upload &amp; screen</button>
+        <a class="small" href="/template.csv">Blank template (CSV)</a>
+        <span class="muted small">·</span>
+        <a class="small" href="/sample.csv">Sample file</a>
+      </div>
+    </form>
+  </div>
 
-<div class="card">
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <div class="form-grid">
-      <div><label for="name">Batch name</label><input type="text" id="name" name="name" placeholder="e.g. Cohort 3 – Nov 2026"></div>
-      <div><label for="donor_name">Donor (report recipient)</label><input type="text" id="donor_name" name="donor_name" placeholder="e.g. European Union"></div>
-      <div><label for="contract_ref">Contract / grant reference</label><input type="text" id="contract_ref" name="contract_ref" placeholder="e.g. NDICI-XXXX/2026/123456"></div>
-      <div><label for="profile">Screening standard</label>
-        <select id="profile" name="profile">
-          {% for key, label in profiles.items() %}<option value="{{ key }}" {{ 'selected' if key == settings.default_profile }}>{{ label }}</option>{% endfor %}
-        </select></div>
-      <div><label for="file">List file (.xlsx / .csv)</label><input type="file" id="file" name="file" accept=".xlsx,.xlsm,.csv,.txt" required></div>
-    </div>
-    <p class="small muted" style="margin:12px 0">Recognised columns: <b>Name</b> (required) or First/Last name · ID · Other names / Local name (separate with <code>;</code>) · Date of birth · Country · Type (Person/Organization).</p>
-    <p class="small" style="margin:0 0 12px">⬇ <a href="/template.csv">Download blank template (CSV)</a> ·
-      <a href="/sample.csv">Download sample file</a> <span class="muted">(fictional names, for trying the app)</span></p>
-    <button class="btn" type="submit">Upload &amp; start screening</button>
-  </form>
+  <h2>Batches</h2>
+  {% if not batches %}
+    <p class="muted">No batches yet. Upload a participant list to start.</p>
+  {% else %}
+  <div class="table-wrap"><table>
+    <tr><th>Batch</th><th>Donor</th><th>People</th><th>Screened</th><th>Status</th><th></th></tr>
+    {% for b in batches %}
+    <tr>
+      <td><a href="/runs/{{ b.latest_run_id }}"><b>{{ b.name }}</b></a>
+        <div class="small muted"><span class="badge b-neutral">{{ b.profile }}</span> {{ b.source_file }}</div></td>
+      <td>{{ b.donor_name or '—' }}{% if b.contract_ref %}<div class="small muted mono">{{ b.contract_ref }}</div>{% endif %}</td>
+      <td>{{ b.person_count }}</td>
+      <td class="small">{{ (b.run.started_at[:10]) if b.run else '—' }}</td>
+      <td>
+        {% if b.run and b.run.status == 'running' %}<span class="badge b-pending">screening…</span>
+        {% elif b.run and b.run.status == 'failed' %}<span class="badge b-strong">failed</span>
+        {% elif b.stats %}
+          {% if b.stats.pending %}<span class="badge b-pending">{{ b.stats.pending }} to review</span>{% endif %}
+          {% if b.stats.escalated %}<span class="badge b-escalated">{{ b.stats.escalated }} escalated</span>{% endif %}
+          {% if not b.stats.pending and not b.stats.escalated %}<span class="badge b-clear">complete</span>{% endif %}
+        {% endif %}
+      </td>
+      <td><form action="/batches/{{ b.id }}/delete" method="post" onsubmit="return confirm('Delete this batch and all its screening results? This cannot be undone.')" style="margin:0">
+        <button class="btn danger sm">Delete</button></form></td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
 </div>
 
-<h2>Lists screened</h2>
-<div class="card small">
-  <div><b>EU EDES exclusion list:</b> {% for d in settings.datasets_for('edes') %}{{ dataset_label(d) }}{% endfor %} → EDES compliance report with declaration</div>
-  <div class="muted" style="margin:2px 0 0 0">The public EDES list holds only the exclusion decisions the Commission has published (a handful of entries), so most people will show "No match".</div>
-  <div style="margin-top:6px"><b>EU restrictive measures:</b> {% for d in settings.datasets_for('eu') %}{{ dataset_label(d) }}{% endfor %} → EU compliance report with declaration</div>
-  <div style="margin-top:6px"><b>Multi-list:</b> {% for d in settings.datasets_for('multi') %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}</div>
+<aside>
+  <div class="callout">
+    <p><b>EDES public list</b></p>
+    <p>{{ dataset_label('eu_edes') }}. It contains only exclusion decisions the European Commission has published — a handful of entries, mostly companies — so most people will show <b>No match</b>.</p>
+    <a class="btn secondary" href="https://commission.europa.eu/strategy-and-policy/eu-budget/how-it-works/annual-lifecycle/implementation/anti-fraud-measures/edes_en" target="_blank" rel="noopener noreferrer">About EDES ↗</a>
+  </div>
+  <h3 style="font-size:15px;margin:20px 0 8px">Screening standards</h3>
+  <table class="kv small">
+    {% for key, label in profiles.items() %}
+    <tr><th style="width:auto">{{ key }}</th><td>{% for d in settings.datasets_for(key) %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+    {% endfor %}
+  </table>
+</aside>
 </div>
-
-<h2>Batches</h2>
-{% if not batches %}
-  <p class="muted">No batches yet.</p>
-{% else %}
-<div class="table-wrap"><table>
-  <tr><th>Batch</th><th>Donor</th><th>People</th><th>Last screened</th><th>Result</th><th></th></tr>
-  {% for b in batches %}
-  <tr>
-    <td><a href="/runs/{{ b.latest_run_id }}">{{ b.name }}</a><div class="small muted">{{ 'EU' if b.profile == 'eu' else 'Multi-list' }} · {{ b.source_file }}</div></td>
-    <td>{{ b.donor_name or '—' }}</td>
-    <td>{{ b.person_count }}</td>
-    <td class="small">{{ b.run.started_at if b.run else '—' }}</td>
-    <td>
-      {% if b.run and b.run.status == 'running' %}<span class="badge b-pending">Screening…</span>
-      {% elif b.run and b.run.status == 'failed' %}<span class="badge b-strong">Failed</span>
-      {% elif b.stats %}
-        {% if b.stats.pending %}<span class="badge b-pending">{{ b.stats.pending }} to review</span>{% endif %}
-        {% if b.stats.escalated %}<span class="badge b-escalated">{{ b.stats.escalated }} escalated</span>{% endif %}
-        {% if not b.stats.pending and not b.stats.escalated %}<span class="badge b-clear">Complete</span>{% endif %}
-      {% endif %}
-    </td>
-    <td><form action="/batches/{{ b.id }}/delete" method="post" onsubmit="return confirm('Delete this batch and all its screening results? This cannot be undone.')">
-      <button class="btn danger" style="padding:4px 10px;font-size:13px">Delete</button></form></td>
-  </tr>
-  {% endfor %}
-</table></div>
-{% endif %}
 {% endblock %}

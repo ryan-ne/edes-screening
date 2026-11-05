@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ batch.name }} – Screening{% endblock %}
+{% block title %}{{ batch.name }} – EDES Screening{% endblock %}
 {% block head %}{% if run.status == 'running' %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 
 {% macro why(r) %}
@@ -12,133 +12,149 @@
 
 {% macro person_cell(r) %}
   <b>{{ r.name }}</b>
-  <div class="small muted">{{ r.ref_id }}{% if r.birth_date %} · {{ r.birth_date }}{% endif %}{% if r.country %} · {{ r.country }}{% endif %}</div>
+  <div class="small muted"><span class="mono">{{ r.ref_id }}</span>{% if r.birth_date %} · {{ r.birth_date }}{% endif %}{% if r.country %} · {{ r.country }}{% endif %}</div>
 {% endmacro %}
 
 {% macro list_cell(r) %}
   {% set c = r.candidates[0] if r.candidates else {} %}
-  {{ c.caption }}
+  {% if c.url %}<a href="{{ c.url }}" target="_blank" rel="noopener noreferrer">{{ c.caption }}</a>{% else %}{{ c.caption }}{% endif %}
   <div class="small muted">{% for d in c.datasets or [] if d in run.datasets %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}</div>
 {% endmacro %}
 
 {% block content %}
-<p class="small"><a href="/">← All batches</a></p>
-<h1>{{ batch.name }}</h1>
-<p class="muted small">
-  <b>{{ profiles.get(batch.profile, batch.profile) }}</b>
-  · Donor: {{ batch.donor_name or '—' }}{% if batch.contract_ref %} · Contract: {{ batch.contract_ref }}{% endif %}
-  · Screened {{ run.started_at }} · List data: {{ run.data_version or 'n/a' }}</p>
-
-{% if imported %}<div class="notice info">Imported {{ imported }} people{% if skipped and skipped != '0' %} · {{ skipped }} row(s) skipped (empty/duplicate/bad date){% endif %}.</div>{% endif %}
-
-{% if run.status == 'running' %}
-  <div class="card">
-    <b>Screening in progress…</b> {{ run.processed }} / {{ run.total }}
-    <div class="progress" style="margin-top:8px"><div style="width: {{ (100 * run.processed / run.total) if run.total else 0 }}%"></div></div>
-  </div>
-{% elif run.status == 'failed' %}
-  <div class="notice err"><b>Screening failed:</b> {{ run.error }}</div>
-{% endif %}
-
-<div class="grid">
-  <div class="stat"><b>{{ stats.screened }}</b><span>Screened</span></div>
-  <div class="stat"><b style="color:var(--clear)">{{ stats['clear'] }}</b><span>No match</span></div>
-  <div class="stat"><b style="color:var(--strong)">{{ stats.strong }}</b><span>Strong matches</span></div>
-  <div class="stat"><b style="color:var(--possible)">{{ stats.possible }}</b><span>Possible matches</span></div>
-  <div class="stat"><b style="color:var(--possible)">{{ stats.pending }}</b><span>Waiting for review</span></div>
-  <div class="stat"><b style="color:var(--cleared)">{{ stats.cleared }}</b><span>Cleared</span></div>
-  <div class="stat"><b style="color:var(--strong)">{{ stats.escalated }}</b><span>Escalated</span></div>
-</div>
-
-{% if run.status == 'done' %}
 {% set pending = results | selectattr('status', 'ne', 'clear') | rejectattr('review_decision') | list %}
 {% set reviewed = results | selectattr('status', 'ne', 'clear') | selectattr('review_decision') | list %}
-<div class="card" style="margin-top:16px">
-  <div class="row">
-    {% if pending %}<a class="btn" href="/results/{{ pending[0].id }}">Review {{ stats.pending }} match{{ 'es' if stats.pending != 1 }} →</a>{% endif %}
-    {% if batch.profile in ('edes', 'eu') %}
-      <a class="btn {{ 'secondary' if pending }}" href="/runs/{{ run.id }}/eu-report.pdf">⬇ {{ 'EDES' if batch.profile == 'edes' else 'EU' }} compliance report (PDF)</a>
-    {% else %}
-      <a class="btn secondary" href="/runs/{{ run.id }}/report.pdf">⬇ PDF for donor (IDs only)</a>
-      <a class="btn secondary" href="/runs/{{ run.id }}/report.pdf?names=true">⬇ PDF with names</a>
-    {% endif %}
-    <a class="btn secondary" href="/runs/{{ run.id }}/report.xlsx">⬇ Excel</a>
-    <form action="/batches/{{ batch.id }}/rescreen" method="post" style="margin-left:auto"><button class="btn secondary">↻ Re-screen</button></form>
+{% set tab = show if show in ('all', 'history') else 'review' %}
+
+<p class="small" style="margin-top:0"><a href="/">← Batches</a></p>
+<div class="layout">
+<div>
+  <h1>{{ batch.name }}</h1>
+  <p class="muted" style="margin:0 0 16px">{{ profiles.get(batch.profile, batch.profile) }}</p>
+
+  {% if imported %}<div class="notice info">Imported {{ imported }} people{% if skipped and skipped != '0' %} · {{ skipped }} row(s) skipped (empty/duplicate/bad date){% endif %}.</div>{% endif %}
+  {% if run.status == 'running' %}
+    <div class="card"><b>Screening in progress…</b> {{ run.processed }} / {{ run.total }}
+      <div class="progress" style="margin-top:8px"><div style="width: {{ (100 * run.processed / run.total) if run.total else 0 }}%"></div></div></div>
+  {% elif run.status == 'failed' %}
+    <div class="notice err"><b>Screening failed:</b> {{ run.error }}</div>
+  {% endif %}
+
+  <table class="kv">
+    <tr><th>Donor</th><td>{{ batch.donor_name or '—' }}</td></tr>
+    {% if batch.contract_ref %}<tr><th>Contract</th><td class="mono">{{ batch.contract_ref }}</td></tr>{% endif %}
+    <tr><th>Lists</th><td>{% for d in run.datasets %}{{ dataset_label(d) }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+    <tr><th>Screened</th><td>{{ run.started_at }} · <span class="muted">source</span> <code>{{ run.screener }}</code></td></tr>
+    <tr><th>List version</th><td><code>{{ run.data_version or 'n/a' }}</code></td></tr>
+    <tr><th>Participants</th><td>{{ stats.screened }} <span class="muted small">from</span> <span class="mono small">{{ batch.source_file }}</span></td></tr>
+  </table>
+
+  <div class="grid" style="margin-top:18px">
+    <div class="stat"><b style="color:var(--clear)">{{ stats['clear'] }}</b><span>No match</span></div>
+    <div class="stat"><b style="color:var(--strong)">{{ stats.strong }}</b><span>Strong</span></div>
+    <div class="stat"><b style="color:var(--possible)">{{ stats.possible }}</b><span>Possible</span></div>
+    <div class="stat"><b style="color:var(--possible)">{{ stats.pending }}</b><span>To review</span></div>
+    <div class="stat"><b style="color:var(--cleared)">{{ stats.cleared }}</b><span>Cleared</span></div>
+    <div class="stat"><b style="color:var(--strong)">{{ stats.escalated }}</b><span>Escalated</span></div>
   </div>
-  {% if pending %}<p class="small muted" style="margin:10px 0 0">The report is marked <b>DRAFT</b> until every match is reviewed.</p>
-  {% else %}<p class="small" style="margin:10px 0 0;color:var(--clear)">✓ All matches reviewed — report is ready to sign and submit.</p>{% endif %}
-  {% if run.summary %}<p style="margin:12px 0 0"><b>AI summary:</b> {{ run.summary }}</p>{% endif %}
+
+  {% if run.summary %}<p style="margin:14px 0 0"><b>AI summary:</b> {{ run.summary }}</p>{% endif %}
+
+  {% if run.status == 'done' %}
+  {% if tab == 'review' %}
+    <div class="legend small">
+      <span class="badge b-strong">Strong</span> exact same name on the list (birth year same or unknown) ·
+      <span class="badge b-possible">Possible</span> exact name but different birth year, or a very similar name.
+      Check each one against the person's ID document.
+    </div>
+
+    {% if not pending and not reviewed %}
+      <div class="card" style="text-align:center;margin-top:18px"><b style="color:var(--clear);font-size:18px">✓ No matches</b>
+        <div class="muted small">Nobody on this list matches the screening list.</div></div>
+    {% endif %}
+
+    {% if pending %}
+    <h2>Waiting for review ({{ pending|length }})</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Participant</th><th>Closest list entry</th><th>Why flagged</th><th>Level</th><th></th></tr>
+      {% for r in pending %}
+      <tr>
+        <td>{{ person_cell(r) }}</td><td>{{ list_cell(r) }}</td><td>{{ why(r) }}</td>
+        <td><span class="badge b-{{ r.status }}">{{ r.status }}</span></td>
+        <td><a class="btn sm" href="/results/{{ r.id }}">Review</a></td>
+      </tr>
+      {% endfor %}
+    </table></div>
+    {% endif %}
+
+    {% if reviewed %}
+    <h2>Reviewed ({{ reviewed|length }})</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Participant</th><th>Closest list entry</th><th>Decision</th><th>Reason</th><th></th></tr>
+      {% for r in reviewed %}
+      <tr>
+        <td>{{ person_cell(r) }}</td><td>{{ list_cell(r) }}</td>
+        <td>{% if r.review_decision == 'cleared' %}<span class="badge b-cleared">cleared</span>{% else %}<span class="badge b-escalated">escalated</span>{% endif %}
+          <div class="small muted">{{ r.reviewer }}</div></td>
+        <td class="small">{{ r.review_note or '' }}</td>
+        <td><a class="small" href="/results/{{ r.id }}">Change</a></td>
+      </tr>
+      {% endfor %}
+    </table></div>
+    {% endif %}
+
+  {% elif tab == 'all' %}
+    <h2>Everyone ({{ stats.screened }})</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Participant</th><th>Result</th><th>Closest list entry</th></tr>
+      {% for r in results|sort(attribute='person_id') %}
+      {% set oc = final_outcome(r) %}
+      <tr>
+        <td>{{ person_cell(r) }}</td>
+        <td>{% if oc == 'No match' %}<span class="badge b-clear">no match</span>
+            {% elif oc.startswith('Cleared') %}<span class="badge b-cleared">cleared</span>
+            {% elif oc.startswith('Escalated') %}<span class="badge b-escalated">escalated</span>
+            {% else %}<a class="badge b-{{ r.status }}" href="/results/{{ r.id }}">{{ r.status }} – review →</a>{% endif %}</td>
+        <td class="small">{% if r.candidates %}{{ list_cell(r) }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table></div>
+
+  {% else %}
+    <h2>Screening history</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Run</th><th>Date</th><th>Source</th><th>List version</th><th>Status</th></tr>
+      {% for x in runs %}<tr><td><a href="/runs/{{ x.id }}">#{{ x.id }}</a>{% if x.id == run.id %} <span class="muted small">(viewing)</span>{% endif %}</td>
+        <td>{{ x.started_at }}</td><td><code>{{ x.screener }}</code></td><td><code>{{ x.data_version or '—' }}</code></td><td>{{ x.status }}</td></tr>{% endfor %}
+    </table></div>
+  {% endif %}
+  {% endif %}
 </div>
 
-<div class="legend small">
-  <span class="badge b-strong">Strong</span> exact same name on the list (birth year same or unknown) ·
-  <span class="badge b-possible">Possible</span> exact name but different birth year, or a very similar name.
-  Check each one against the person's ID document.
+<aside>
+  <nav class="sidenav">
+    <a href="?show=review" class="{{ 'on' if tab == 'review' }}">Matches ({{ stats.possible + stats.strong }})</a>
+    <a href="?show=all" class="{{ 'on' if tab == 'all' }}">Everyone ({{ stats.screened }})</a>
+    <a href="?show=history" class="{{ 'on' if tab == 'history' }}">History ({{ runs|length }})</a>
+  </nav>
+  {% if run.status == 'done' %}
+  <div class="callout">
+    {% if pending %}
+      <p><b>{{ stats.pending }} match{{ 'es' if stats.pending != 1 }} to review.</b> The report is marked DRAFT until every match is reviewed.</p>
+      <a class="btn accent" href="/results/{{ pending[0].id }}">Start review →</a>
+    {% else %}
+      <p><b>✓ All matches reviewed.</b> The report is ready to sign and submit.</p>
+    {% endif %}
+    {% if batch.profile in ('edes', 'eu') %}
+      <a class="btn {{ 'secondary' if pending else 'accent' }}" href="/runs/{{ run.id }}/eu-report.pdf">{{ 'EDES' if batch.profile == 'edes' else 'EU' }} compliance report (PDF)</a>
+    {% else %}
+      <a class="btn secondary" href="/runs/{{ run.id }}/report.pdf">PDF for donor (IDs only)</a>
+      <a class="btn secondary" href="/runs/{{ run.id }}/report.pdf?names=true">PDF with names</a>
+    {% endif %}
+    <a class="btn secondary" href="/runs/{{ run.id }}/report.xlsx">Excel export</a>
+    <form action="/batches/{{ batch.id }}/rescreen" method="post" style="margin:0"><button class="btn secondary">↻ Re-screen with latest list</button></form>
+  </div>
+  {% endif %}
+</aside>
 </div>
-
-<div class="row tabs" style="margin:18px 0 10px">
-  <a href="?show=review" class="{{ 'on' if show != 'all' }}">Matches ({{ stats.possible + stats.strong }})</a>
-  <a href="?show=all" class="{{ 'on' if show == 'all' }}">Everyone ({{ stats.screened }})</a>
-</div>
-
-{% if show != 'all' %}
-  {% if not pending and not reviewed %}
-    <div class="card" style="text-align:center"><b style="color:var(--clear)">✓ No matches</b><div class="muted small">Nobody on this list matches the screening list.</div></div>
-  {% endif %}
-
-  {% if pending %}
-  <h2>Waiting for review ({{ pending|length }})</h2>
-  <div class="table-wrap"><table>
-    <tr><th>Participant</th><th>Closest list entry</th><th>Why flagged</th><th>Level</th><th></th></tr>
-    {% for r in pending %}
-    <tr>
-      <td>{{ person_cell(r) }}</td><td>{{ list_cell(r) }}</td><td>{{ why(r) }}</td>
-      <td><span class="badge b-{{ r.status }}">{{ r.status|title }}</span></td>
-      <td><a class="btn" style="padding:5px 12px;font-size:13px" href="/results/{{ r.id }}">Review</a></td>
-    </tr>
-    {% endfor %}
-  </table></div>
-  {% endif %}
-
-  {% if reviewed %}
-  <h2>Reviewed ({{ reviewed|length }})</h2>
-  <div class="table-wrap"><table>
-    <tr><th>Participant</th><th>Closest list entry</th><th>Decision</th><th>Reason</th><th></th></tr>
-    {% for r in reviewed %}
-    <tr>
-      <td>{{ person_cell(r) }}</td><td>{{ list_cell(r) }}</td>
-      <td>{% if r.review_decision == 'cleared' %}<span class="badge b-cleared">Cleared</span>{% else %}<span class="badge b-escalated">Escalated</span>{% endif %}
-        <div class="small muted">{{ r.reviewer }}</div></td>
-      <td class="small">{{ r.review_note or '' }}</td>
-      <td><a class="small" href="/results/{{ r.id }}">Change</a></td>
-    </tr>
-    {% endfor %}
-  </table></div>
-  {% endif %}
-{% else %}
-  <div class="table-wrap"><table>
-    <tr><th>Participant</th><th>Result</th><th>Closest list entry</th></tr>
-    {% for r in results|sort(attribute='person_id') %}
-    {% set oc = final_outcome(r) %}
-    <tr>
-      <td>{{ person_cell(r) }}</td>
-      <td>{% if oc == 'No match' %}<span class="badge b-clear">No match</span>
-          {% elif oc.startswith('Cleared') %}<span class="badge b-cleared">Cleared</span>
-          {% elif oc.startswith('Escalated') %}<span class="badge b-escalated">Escalated</span>
-          {% else %}<a class="badge b-{{ r.status }}" href="/results/{{ r.id }}">{{ r.status|title }} – review →</a>{% endif %}</td>
-      <td class="small">{% if r.candidates %}{{ list_cell(r) }}{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table></div>
-{% endif %}
-{% endif %}
-
-{% if runs|length > 1 %}
-<h2>Screening history</h2>
-<div class="table-wrap"><table>
-  <tr><th>Run</th><th>Date</th><th>Source</th><th>Status</th></tr>
-  {% for x in runs %}<tr><td><a href="/runs/{{ x.id }}">#{{ x.id }}</a>{% if x.id == run.id %} (viewing){% endif %}</td>
-    <td>{{ x.started_at }}</td><td>{{ x.screener }}</td><td>{{ x.status }}</td></tr>{% endfor %}
-</table></div>
-{% endif %}
 {% endblock %}
