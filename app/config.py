@@ -46,6 +46,22 @@ class Settings:
     possible_threshold: float = float(os.getenv("POSSIBLE_THRESHOLD", "0.5"))
     strong_threshold: float = float(os.getenv("STRONG_THRESHOLD", "0.8"))
     batch_size: int = int(os.getenv("BATCH_SIZE", "25"))
+    # Login. Empty APP_PASSWORD = no login (local use only).
+    app_password: str = os.getenv("APP_PASSWORD", "")
+    secret_key: str = os.getenv("SECRET_KEY", "")
+    api_token: str = os.getenv("API_TOKEN", "")
+    cookie_secure: bool = os.getenv("COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+
+    def __post_init__(self) -> None:
+        # Server deployments set REQUIRE_AUTH=true so the app can never start unprotected.
+        if os.getenv("REQUIRE_AUTH", "false").lower() in ("1", "true", "yes") and len(self.app_password) < 12:
+            raise RuntimeError("REQUIRE_AUTH is on: set APP_PASSWORD (12+ characters).")
+        if self.app_password and len(self.secret_key) < 32:
+            raise RuntimeError("SECRET_KEY must be set (32+ chars) when APP_PASSWORD is set.")
+
+    @property
+    def auth_enabled(self) -> bool:
+        return bool(self.app_password)
 
     @property
     def screener_name(self) -> str:

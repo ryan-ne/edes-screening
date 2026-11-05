@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from . import db, service
+from . import auth, db, service
 from .config import settings
 from .importer import import_file
 from .reports import dataset_label, final_outcome
@@ -31,6 +31,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Beneficiary Screening", version="1.0", lifespan=lifespan,
               description="Screen program beneficiaries against sanctions/debarment lists "
                           "and produce donor compliance reports.")
+app.add_middleware(auth.AuthMiddleware)
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 templates.env.globals.update(settings=settings, dataset_label=dataset_label, final_outcome=final_outcome)
 
@@ -60,6 +61,42 @@ def _create_and_run(bg: BackgroundTasks, name: str, donor: str | None, filename:
     run_id = service.start_run(batch_id)
     bg.add_task(service.execute_run, run_id)
     return batch_id, run_id, imp
+
+
+# =========================== Login ===========================
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    if not settings.auth_enabled:
+        return RedirectResponse("/", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"error": None})
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login_submit(request: Request, password: str = Form(...)):
+    if not settings.auth_enabled:
+        return RedirectResponse("/", status_code=303)
+    ip = auth.client_ip(request)
+    if auth.locked_out(ip):
+        return templates.TemplateResponse(
+            request, "login.html", {"error": "Too many failed attempts. Try again in 15 minutes."},
+            status_code=429)
+    if not auth.check_password(password):
+        auth.record_fail(ip)
+        return templates.TemplateResponse(request, "login.html", {"error": "Wrong password."},
+                                          status_code=401)
+    auth.clear_fails(ip)
+    resp = RedirectResponse("/", status_code=303)
+    resp.set_cookie(auth.COOKIE, auth.make_token(), max_age=auth.SESSION_TTL, httponly=True,
+                    secure=settings.cookie_secure, samesite="lax")
+    return resp
+
+
+@app.post("/logout")
+def logout():
+    resp = RedirectResponse("/login" if settings.auth_enabled else "/", status_code=303)
+    resp.delete_cookie(auth.COOKIE)
+    return resp
 
 
 # =========================== UI ===========================

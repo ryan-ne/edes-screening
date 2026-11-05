@@ -33,6 +33,10 @@ Edit `.env`:
 
 Open http://127.0.0.1:8000. The API docs are at http://127.0.0.1:8000/docs.
 
+## Deploy to a server
+
+See [DEPLOY.md](DEPLOY.md). It covers Docker Compose, automatic HTTPS with Caddy, the team password login, and backups.
+
 ## Input file
 
 | Column (any of these names) | Required |

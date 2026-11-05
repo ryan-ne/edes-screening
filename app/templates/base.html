@@ -68,7 +68,9 @@
 <header>
   <a href="/">🛡️ Beneficiary Screening</a>
   <div class="meta">{{ settings.org_name }} · source: <b>{{ settings.screener_name }}</b>
-    {% if settings.claude_enabled %}· AI summaries on{% endif %} · <a href="/docs" style="font-size:13px;font-weight:400">API docs</a></div>
+    {% if settings.claude_enabled %}· AI summaries on{% endif %} · <a href="/docs" style="font-size:13px;font-weight:400">API docs</a>
+    {% if settings.auth_enabled and request.url.path != '/login' %}<form action="/logout" method="post" style="display:inline;margin-left:10px">
+      <button style="background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:6px;padding:2px 8px;cursor:pointer;font-size:12px">Sign out</button></form>{% endif %}</div>
 </header>
 <main>
 {% if settings.screener_name == 'mock' %}
