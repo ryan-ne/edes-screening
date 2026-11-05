@@ -9,10 +9,19 @@ services:
       DB_PATH: /app/data/screening.db
     volumes:
       - app_data:/app/data
-    # No published ports: only reachable through Caddy.
+    networks:
+      default:
+      proxy:
+        aliases: [edes-screening]   # reverse proxies reach the app at edes-screening:8000
+    # No published ports: only reachable through a reverse proxy.
 
+  # Own HTTPS proxy. Only for a VPS where nothing else uses ports 80/443:
+  #   docker compose --profile standalone up -d
+  # If another app's Caddy/nginx already owns 80/443, leave this off and
+  # point that proxy at edes-screening:8000 on the "edes_proxy" network (see DEPLOY.md).
   caddy:
     image: caddy:2.8
+    profiles: [standalone]
     restart: unless-stopped
     depends_on: [app]
     ports:
@@ -20,11 +29,16 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+      DOMAIN: ${DOMAIN:-}
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    networks: [proxy]
+
+networks:
+  proxy:
+    name: edes_proxy   # fixed name so other compose projects can join it
 
 volumes:
   app_data:

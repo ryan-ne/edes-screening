@@ -1,0 +1,22 @@
+# Add this block to the Caddyfile of the Caddy that already owns ports 80/443
+# (e.g. another app's Caddy). Replace the domain with yours.
+# That Caddy container must also be on the "edes_proxy" Docker network.
+
+screening.example.org {
+	encode gzip
+
+	request_body {
+		max_size 12MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "same-origin"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	reverse_proxy edes-screening:8000
+}

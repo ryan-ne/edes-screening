@@ -67,10 +67,44 @@ Fill in `DOMAIN`, `ORG_NAME`, `APP_PASSWORD` (12+ characters, a passphrase works
 
 ## 5. Start
 
+First, check whether anything already uses ports 80/443 (for example another app's Caddy or nginx):
+
 ```bash
-docker compose up -d --build
+sudo ss -ltnp '( sport = :80 or sport = :443 )'
+```
+
+### A. Nothing on 80/443: use the app's own Caddy
+
+```bash
+docker compose --profile standalone up -d --build
 docker compose logs -f        # Ctrl+C to stop watching
 ```
+
+### B. Another app's Caddy already owns 80/443: share it
+
+The app joins a Docker network named `edes_proxy` under the name `edes-screening`. The existing Caddy joins that network too, and gets one extra site block.
+
+1. Start the app without its own Caddy:
+   ```bash
+   docker compose up -d --build
+   ```
+2. In the **other app's** `docker-compose.yml`, add the network to its Caddy service. Keep `default` in the list, otherwise that Caddy loses its connection to its own app:
+   ```yaml
+   services:
+     caddy:            # the other app's caddy service
+       networks:
+         - default
+         - edes_proxy
+
+   networks:
+     edes_proxy:
+       external: true
+   ```
+3. Add the block from `deploy/Caddyfile.shared-snippet` to the **other app's** Caddyfile, using your domain.
+4. In the other app's folder, recreate its Caddy. This causes a few seconds of downtime:
+   ```bash
+   docker compose up -d caddy
+   ```
 
 Open `https://screening.yourorg.org`. The first visit may take about 30 seconds while the certificate is issued. Sign in with `APP_PASSWORD`.
 
@@ -79,7 +113,8 @@ Open `https://screening.yourorg.org`. The first visit may take about 30 seconds 
 Copy the new code over, as in step 3 (or run `git pull`), then:
 
 ```bash
-docker compose up -d --build
+docker compose up -d --build                         # setup B (shared proxy)
+docker compose --profile standalone up -d --build    # setup A (own Caddy)
 ```
 
 Your data lives in the Docker volume `app_data`. Rebuilding the app keeps it.

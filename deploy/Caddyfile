@@ -15,5 +15,5 @@
 		-Server
 	}
 
-	reverse_proxy app:8000
+	reverse_proxy edes-screening:8000
 }
